@@ -1,5 +1,3 @@
-# categories.py
-
 categories = {
     'Двигатель': {
         'tasks': {
