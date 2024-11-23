@@ -12,7 +12,8 @@ from telegram.ext import (
 )
 from categories import categories, calculate_progress
 from recommendations import handle_recommendations, handle_complete_task
-from admin import handle_admin, handle_clear_data
+from admin import handle_admin, handle_clear_data, handle_garage, handle_add_motorcycle, handle_motorcycle_name
+
 
 # Путь к файлу для хранения данных
 DATA_FILE = "maintenance_data.json"
@@ -167,6 +168,9 @@ def main():
     ))
     application.add_handler(CallbackQueryHandler(handle_section, pattern="^(engine|suspension|brakes|wheels|chain|other|recommendations|admin|main_menu)$"))
     application.add_handler(CallbackQueryHandler(handle_clear_data, pattern="^clear_data$"))
+    application.add_handler(CallbackQueryHandler(handle_garage, pattern="^garage$"))
+    application.add_handler(CallbackQueryHandler(handle_add_motorcycle, pattern="^add_motorcycle$"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_motorcycle_name))
     application.add_handler(CallbackQueryHandler(
         lambda update, context: handle_complete_task(update, context, maintenance_data, categories),
         pattern="^complete_.*$"
