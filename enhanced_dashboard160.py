@@ -11,8 +11,7 @@ from telegram.ext import (
     ConversationHandler,
 )
 from categories import categories, calculate_progress
-from recommendations import handle_recommendations, handle_complete_task
-from admin import handle_admin, handle_clear_data
+from recommendations import handle_recommendations
 
 # Путь к файлу для хранения данных
 DATA_FILE = "maintenance_data.json"
@@ -38,11 +37,16 @@ maintenance_data = load_data()
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    with open(r"D:\PY\main.png", "rb") as photo:
-        await update.message.reply_photo(photo=photo, caption=(
-            "Привет! Обслуживание эндуро мотоцикла — это важный процесс, который напрямую влияет на его производительность, долговечность и безопасность. "
-            "Этот Телеграм-БОТ поможет поддерживать твой мотоцикл в хорошем состоянии!"
-        ))
+    try:
+        with open(r"D:\PY\main.png", "rb") as photo:
+            await update.message.reply_photo(photo=photo, caption=(
+                "Привет! Обслуживание эндуро мотоцикла — это важный процесс, который напрямую влияет на его производительность, долговечность и безопасность. "
+                "Этот Телеграм-БОТ поможет поддерживать твой мотоцикл в хорошем состоянии!"
+            ))
+    except FileNotFoundError:
+        await update.message.reply_text("Ошибка: изображение main.png не найдено.")
+        return
+
     await update.message.reply_text("Пожалуйста, укажи текущие показания моточасов:")
     return ASK_HOURS
 
@@ -107,6 +111,22 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.callback_query:
         await update.callback_query.message.reply_text("Все задачи заполнены. Выберите раздел или получите рекомендации:", reply_markup=reply_markup)
 
+# Обработчик кнопки "Администрирование"
+async def handle_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("Очистить данные", callback_data="clear_data")],
+        [InlineKeyboardButton("Главное меню", callback_data="main_menu")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text("Администрирование. Выберите действие:", reply_markup=reply_markup)
+
+# Обработчик очистки данных
+async def handle_clear_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global maintenance_data
+    maintenance_data = {task: None for category in categories.values() for task in category['tasks'].keys()}
+    save_data(maintenance_data)
+    await update.callback_query.message.reply_text("Данные сброшены. Начните с команды /start.")
+
 # Обработчик кнопок разделов
 async def handle_section(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -123,21 +143,21 @@ async def handle_section(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "admin": "Администрирование",
     }
 
-    if query.data == "main_menu":  # Обрабатываем кнопку "Главное меню"
+    if query.data == "main_menu":
         await send_main_menu(update, context)
         return
 
-    if query.data == "admin":  # Обрабатываем кнопку "Администрирование"
+    if query.data == "admin":
         await handle_admin(update, context)
         return
 
-    if query.data == "recommendations":  # Обрабатываем кнопку "Рекомендации"
-        await handle_recommendations(update, context, maintenance_data, categories)
+    if query.data not in section_mapping:
+        await query.edit_message_text("Неизвестный раздел. Попробуйте снова.")
         return
 
-    selected_section = section_mapping.get(query.data)
-    if selected_section is None:
-        await query.edit_message_text("Неизвестный раздел. Попробуйте снова.")
+    selected_section = section_mapping[query.data]
+    if selected_section == "Рекомендации":
+        await handle_recommendations(update, context, maintenance_data, categories)
         return
 
     tasks = categories[selected_section]['tasks']
@@ -165,12 +185,8 @@ def main():
         },
         fallbacks=[],
     ))
-    application.add_handler(CallbackQueryHandler(handle_section, pattern="^(engine|suspension|brakes|wheels|chain|other|recommendations|admin|main_menu)$"))
+    application.add_handler(CallbackQueryHandler(handle_section, pattern="^(engine|suspension|brakes|wheels|chain|other|recommendations|admin|main_menu|clear_data)$"))
     application.add_handler(CallbackQueryHandler(handle_clear_data, pattern="^clear_data$"))
-    application.add_handler(CallbackQueryHandler(
-        lambda update, context: handle_complete_task(update, context, maintenance_data, categories),
-        pattern="^complete_.*$"
-    ))
 
     application.run_polling()
 

@@ -1,14 +1,29 @@
+import json
+import os
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ContextTypes
 
-async def handle_admin(update, context):
-    query = update.callback_query
-    await query.answer()
+# Путь к файлу для хранения данных
+DATA_FILE = "maintenance_data.json"
 
-    keyboard = [[InlineKeyboardButton("Очистить данные", callback_data="clear_data")]]
+# Функция для очистки данных
+def clear_data():
+    if os.path.exists(DATA_FILE):
+        os.remove(DATA_FILE)
+    return {}
+
+
+# Обработчик для кнопки "Администрирование"
+async def handle_admin(update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("Очистить данные", callback_data="clear_data")],
+        [InlineKeyboardButton("Главное меню", callback_data="main_menu")],
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text("Раздел Администрирование. Выберите действие:", reply_markup=reply_markup)
+    await update.callback_query.message.reply_text("Администрирование. Выберите действие:", reply_markup=reply_markup)
 
-async def handle_clear_data(update, context):
-    global maintenance_data
-    maintenance_data = {task: None for category in categories.values() for task in category["tasks"].keys()}
-    await update.callback_query.edit_message_text("Данные успешно очищены.")
+
+# Обработчик для кнопки "Очистить данные"
+async def handle_clear_data(update, context: ContextTypes.DEFAULT_TYPE):
+    clear_data()
+    await update.callback_query.message.reply_text("Данные успешно очищены. Начните с команды /start.")
